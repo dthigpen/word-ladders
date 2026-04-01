@@ -1,0 +1,19 @@
+[project]
+name = "word-ladders"
+version = "0.1.0"
+description = "Simple word ladder generator and solver"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dependencies = [
+	"wordfreq==3.1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+	"ruff==0.15.8",
+]
