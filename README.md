@@ -10,12 +10,12 @@ Just install the dependencies with `pip install -r requirements.txt`, then run t
 
 Run each with `--help` for more details.
 
-### `generate.py`
+### `ladder.py`
 
 Right now this script just solves a given word ladder, given optional constraints.
 
 ```bash
-python generate.py --solve warm cold
+python ladder.py --solve warm cold
 ```
 
 Output:
