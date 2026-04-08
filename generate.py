@@ -40,8 +40,8 @@ def existing_file(p: str) -> Path:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Generate word ladder solutions')
-    parser.add_argument('-w', '--words', required=True, type=existing_file, help='Path to the word list that the words in the chain will come from')
-    parser.add_argument('--pair',nargs='2', type=str, help='Start and end words to generate a chain for')
+    parser.add_argument('-w', '--words', default='words.txt', type=existing_file, help='Path to the word list that the words in the chain will come from')
+    parser.add_argument('--solve',nargs=2, type=str, help='Solve the word ladder with the given start and end words')
     parser.add_argument('--min-steps', type=int, help='The minimum number for steps in the chain')
     parser.add_argument('--max-steps', type=int, help='The maximum number for steps in the chain')
     parser.add_argument('-d', '--delimiter', default=' ', type=str, help='Delimiter between each word in the chain. Default to space')
@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
 if __name__ == '__main__':
     args = parse_args()
     words = load_words(args.words)
-    start_word, end_word = args.pair
+    start_word, end_word = args.solve
     ladder = find_ladder(start_word, end_word, words)
 
     print(args.delimiter.join(ladder))    
