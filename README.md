@@ -1,82 +1,62 @@
-# word-ladders
+# Word Ladders
 
-A set of scripts I have used to help generate word ladder puzzles.
+Toolkit for generating and solving word ladder puzzles.
 
-## Setup
-
-1. Create a Python virtual environment and install dependencies:
+## Installation
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+source .venv/bin/activate
+pip install -e .
 ```
 
-## Scripts
+## Usage
 
-Run each with `--help` for more details.
-
-### `src/build_lexicon.py`
-
-**New:** Iterative 4-letter word ladder lexicon pipeline. This script processes raw Scrabble dictionaries to extract a high-quality, playable set of English 4-letter words (nouns, verbs, and adjectives) while filtering out obscure terms and supporting human-in-the-loop curation.
+### Build Word List
 
 ```bash
-python src/build_lexicon.py
+word-ladders lexicon
 ```
 
-The pipeline:
-- Reads from `data/raw/scrabble_words.txt`
-- Applies linguistic filters (WordNet existence, POS tags, frequency threshold)
-- Applies manual overrides from `data/curation/force_include.txt` and `data/curation/force_exclude.txt`
-- Outputs to `data/output/valid_4letter_words.txt`
-- Generates `data/output/pipeline_audit_log.json` with metrics and borderline samples for tuning
+Reads from `data/raw/scrabble_words.txt`, applies filters, and outputs to `data/output/valid_4letter_words.txt`.
 
-**Iterative Curation Workflow:**
-1. Run the pipeline with default settings
-2. Review `pipeline_audit_log.json` (borderline passed/failed lists) or test puzzle generation
-3. Add inappropriate words to `data/curation/force_exclude.txt`
-4. Add missing good words to `data/curation/force_include.txt`
-5. Adjust `min_frequency` in `config.yaml` if needed
-6. Re-run the pipeline
+Edit `data/curation/force_include.txt` and `data/curation/force_exclude.txt` to manually add/remove words.
 
-See `docs/WORDLIST_GEN_DESIGN.md` for full architectural details.
-
-### `word_list.py`
-
-Generates a word list given various word files (legacy script).
+### Generate Random Puzzles
 
 ```bash
-python word_list.py
+word-ladders puzzles
+word-ladders puzzles --solve warm cold
+word-ladders puzzles --min-pqs 70 --seed 42 --easy 10 --medium 20
 ```
 
-### `src/generate_puzzles.py`
+Generates puzzles with PQS filtering and difficulty tagging. See `config/config.yaml` for defaults.
 
-**New:** Generates high-quality word ladder puzzles from the curated word list, filtering by Puzzle Quality Score (PQS) and tagging by difficulty (Easy/Medium/Hard/Expert). Can also solve specific word ladder pairs.
+### Generate Thematic Puzzles
 
 ```bash
-# Generate puzzles
-python src/generate_puzzles.py
-
-# Solve a specific pair
-python src/generate_puzzles.py --solve warm cold
+word-ladders thematic
 ```
 
-Options:
-- `-n, --num-puzzles`: Number of puzzles to generate (default: 50)
-- `--min-pqs`: Minimum PQS threshold (default: 80.0)
-- `--min-distance`: Minimum intermediate steps (default: 3)
-- `--max-distance`: Maximum intermediate steps (default: 6)
-- `-w, --word-list`: Path to word list (default: data/output/valid_4letter_words.txt)
-- `-o, --output`: Output file path (default: data/output/generated_puzzles.json)
-- `--solve START END`: Solve a specific word ladder pair
+Uses WordNet to find semantically related word pairs (same category, antonyms, cross-domain).
 
-The generator:
-- Loads the curated word list
-- Builds a graph of word connections
-- Samples random word pairs and finds all shortest paths using BFS
-- Calculates PQS (vocabulary commonality, path diversity, optimal length, graph connectivity)
-- Tags puzzles by difficulty using CDS (Composite Difficulty Score)
-- Filters to only keep puzzles meeting the PQS threshold
-- Outputs puzzles as JSON with all solution paths and metadata
+## Configuration
 
-See `docs/word_ladder_puzzle_quality_score_specification.md` and `docs/word_ladder_difficulty_tagging_specification.md` for detailed scoring algorithms.
+All settings in `config/config.yaml`:
+- `paths`: File paths
+- `filtering`: Word list parameters
+- `puzzle_generation`: Random puzzle settings
+- `pair_generation`: Thematic puzzle settings
+
+## Project Structure
+
+```
+word-ladders/
+├── config/config.yaml
+├── data/
+│   ├── raw/           # Input dictionaries
+│   ├── curation/      # Manual overrides
+│   ├── output/        # Generated outputs (gitignored)
+│   └── curated/       # Final word lists and puzzle sets
+└── src/word_ladders/  # Package code
+```

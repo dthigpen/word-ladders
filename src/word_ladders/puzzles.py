@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Set, Dict, List, Tuple
 
 import wordfreq
+import yaml
 
 
 def load_words(file_path: str) -> Set[str]:
@@ -252,10 +253,12 @@ def generate_puzzles(
     graph: Dict[str, Set[str]],
     word_freq_map: Dict[str, float],
     graph_degrees: Dict[str, int],
+    difficulty_targets: Dict[str, int] = None,
     num_puzzles: int = 100,
     min_pqs: float = 80.0,
     min_distance: int = 3,
-    max_distance: int = 6
+    max_distance: int = 6,
+    max_attempts: int = None
 ) -> List[Dict]:
     """
     Generate puzzles by sampling word pairs and filtering by PQS.
@@ -265,23 +268,60 @@ def generate_puzzles(
         graph: Word adjacency graph
         word_freq_map: Dict mapping word -> frequency
         graph_degrees: Dict mapping word -> neighbor count
-        num_puzzles: Target number of puzzles to generate
+        difficulty_targets: Dict mapping difficulty -> target count (e.g., {'easy': 10, 'medium': 20})
+                          If None or all zeros, uses num_puzzles as total target
+        num_puzzles: Target number of puzzles to generate (used if difficulty_targets not set)
         min_pqs: Minimum PQS threshold (default 80)
         min_distance: Minimum intermediate steps
         max_distance: Maximum intermediate steps
+        max_attempts: Maximum sampling attempts (default: calculated based on targets)
     
     Returns:
         List of puzzle dictionaries with metadata
     """
     puzzles = []
     attempts = 0
-    max_attempts = num_puzzles * 20  # Allow many attempts to find good puzzles
-    word_list = list(word_set)
+    
+    # Determine generation mode
+    use_difficulty_targets = difficulty_targets and sum(difficulty_targets.values()) > 0
+    
+    if use_difficulty_targets:
+        total_target = sum(difficulty_targets.values())
+        max_attempts = max_attempts or total_target * 50
+    else:
+        total_target = num_puzzles
+        max_attempts = max_attempts or num_puzzles * 100  # More attempts for total-count mode
+    
+    word_list = sorted(word_set)  # Sort for deterministic ordering
     
     # Track used start/end pairs to avoid duplicates
     used_pairs = set()
     
-    while len(puzzles) < num_puzzles and attempts < max_attempts:
+    # Track current counts per difficulty
+    current_counts = {d: 0 for d in ['Easy', 'Medium', 'Hard', 'Expert']}
+    
+    def targets_met():
+        """Check if all difficulty targets have been met."""
+        if not use_difficulty_targets:
+            return len(puzzles) >= total_target
+        
+        for diff, target in difficulty_targets.items():
+            if current_counts[diff.capitalize()] < target:
+                return False
+        return True
+    
+    def should_accept(difficulty: str) -> bool:
+        """Check if a puzzle should be accepted based on difficulty targets."""
+        if not use_difficulty_targets:
+            return True
+        
+        target = difficulty_targets.get(difficulty.lower(), 0)
+        if target == 0:
+            return False  # Don't accept difficulties with 0 target
+        
+        return current_counts[difficulty] < target
+    
+    while not targets_met() and attempts < max_attempts:
         attempts += 1
         
         # Sample two random words
@@ -313,6 +353,10 @@ def generate_puzzles(
         # Calculate difficulty
         difficulty = calculate_difficulty_tag(paths, word_freq_map, graph_degrees)
         
+        # Check if we should accept this difficulty
+        if not should_accept(difficulty):
+            continue
+        
         # Mark pair as used
         used_pairs.add(pair_key)
         
@@ -328,12 +372,26 @@ def generate_puzzles(
         }
         
         puzzles.append(puzzle)
+        current_counts[difficulty] += 1
         
         if attempts % 100 == 0:
-            print(f"  Generated {len(puzzles)}/{num_puzzles} puzzles (attempts: {attempts})")
+            if use_difficulty_targets:
+                print(f"  Progress: {current_counts} / {difficulty_targets} (attempts: {attempts})")
+            else:
+                print(f"  Generated {len(puzzles)}/{total_target} puzzles (attempts: {attempts})")
     
-    print(f"  Generated {len(puzzles)} puzzles in {attempts} attempts")
+    if use_difficulty_targets:
+        print(f"  Generated {len(puzzles)} puzzles: {current_counts} (attempts: {attempts})")
+    else:
+        print(f"  Generated {len(puzzles)} puzzles in {attempts} attempts")
+    
     return puzzles
+
+
+def load_config(config_path: str = 'config/config.yaml') -> Dict:
+    """Load configuration from YAML file and resolve relative paths."""
+    from word_ladders.lexicon import load_config as load_config_base
+    return load_config_base(config_path)
 
 
 def main():
@@ -341,22 +399,60 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Generate word ladder puzzles or solve specific pairs')
-    parser.add_argument('-n', '--num-puzzles', type=int, default=50, help='Number of puzzles to generate')
-    parser.add_argument('--min-pqs', type=float, default=80.0, help='Minimum PQS threshold')
-    parser.add_argument('--min-distance', type=int, default=3, help='Minimum intermediate steps')
-    parser.add_argument('--max-distance', type=int, default=6, help='Maximum intermediate steps')
-    parser.add_argument('-w', '--word-list', default='data/output/valid_4letter_words.txt', help='Path to word list')
-    parser.add_argument('-o', '--output', default='data/output/generated_puzzles.json', help='Output file path')
+    parser.add_argument('-c', '--config', default='config.yaml', help='Path to config file')
+    parser.add_argument('-n', '--num-puzzles', type=int, help='Number of puzzles to generate (overrides config)')
+    parser.add_argument('--min-pqs', type=float, help='Minimum PQS threshold (overrides config)')
+    parser.add_argument('--min-distance', type=int, help='Minimum intermediate steps (overrides config)')
+    parser.add_argument('--max-distance', type=int, help='Maximum intermediate steps (overrides config)')
+    parser.add_argument('-w', '--word-list', help='Path to word list (overrides config)')
+    parser.add_argument('-o', '--output', help='Output file path (overrides config)')
+    parser.add_argument('--seed', type=int, help='Random seed for deterministic generation (overrides config)')
+    parser.add_argument('--easy', type=int, help='Target count for Easy puzzles (overrides config)')
+    parser.add_argument('--medium', type=int, help='Target count for Medium puzzles (overrides config)')
+    parser.add_argument('--hard', type=int, help='Target count for Hard puzzles (overrides config)')
+    parser.add_argument('--expert', type=int, help='Target count for Expert puzzles (overrides config)')
     parser.add_argument('--solve', nargs=2, metavar=('START', 'END'), help='Solve a specific word ladder pair')
     
     args = parser.parse_args()
+    
+    # Load config
+    config = load_config(args.config)
+    puzzle_config = config.get('puzzle_generation', {})
+    
+    # Apply CLI overrides
+    word_list = args.word_list or puzzle_config.get('word_list', 'data/output/valid_4letter_words.txt')
+    output = args.output or puzzle_config.get('output', 'data/output/generated_puzzles.json')
+    min_pqs = args.min_pqs if args.min_pqs is not None else puzzle_config.get('min_pqs', 80.0)
+    min_distance = args.min_distance if args.min_distance is not None else puzzle_config.get('min_distance', 3)
+    max_distance = args.max_distance if args.max_distance is not None else puzzle_config.get('max_distance', 6)
+    seed = args.seed if args.seed is not None else puzzle_config.get('seed')
+    
+    # Difficulty targets
+    # If num_puzzles is explicitly provided via CLI, ignore difficulty targets
+    if args.num_puzzles is not None:
+        difficulty_targets = {'easy': 0, 'medium': 0, 'hard': 0, 'expert': 0}
+        num_puzzles = args.num_puzzles
+    else:
+        config_targets = puzzle_config.get('difficulty_targets', {})
+        difficulty_targets = {
+            'easy': args.easy if args.easy is not None else config_targets.get('easy', 0),
+            'medium': args.medium if args.medium is not None else config_targets.get('medium', 0),
+            'hard': args.hard if args.hard is not None else config_targets.get('hard', 0),
+            'expert': args.expert if args.expert is not None else config_targets.get('expert', 0),
+        }
+        num_puzzles = puzzle_config.get('num_puzzles', 50)
+    
+    # Set random seed for determinism
+    if seed is not None:
+        random.seed(seed)
+        print(f"Using random seed: {seed}")
     
     print("Word Ladder Puzzle Generator")
     print("=" * 50)
     
     # Load word list
-    print(f"\nLoading word list from: {args.word_list}")
-    word_set = load_words(args.word_list)
+    print(f"\nLoading word list from: {word_list}")
+    word_set = load_words(word_list)
     print(f"  Loaded {len(word_set)} words")
     
     # Build graph
@@ -404,23 +500,32 @@ def main():
         return
     
     # Generate puzzles mode
-    print(f"\nGenerating puzzles (min PQS: {args.min_pqs}, distance: {args.min_distance}-{args.max_distance})...")
+    use_targets = sum(difficulty_targets.values()) > 0
+    
+    if use_targets:
+        print(f"\nGenerating puzzles with difficulty targets: {difficulty_targets}")
+    else:
+        print(f"\nGenerating {num_puzzles} puzzles")
+    
+    print(f"  Min PQS: {min_pqs}, Distance: {min_distance}-{max_distance}")
+    
     puzzles = generate_puzzles(
         word_set=word_set,
         graph=graph,
         word_freq_map=word_freq_map,
         graph_degrees=graph_degrees,
-        num_puzzles=args.num_puzzles,
-        min_pqs=args.min_pqs,
-        min_distance=args.min_distance,
-        max_distance=args.max_distance
+        difficulty_targets=difficulty_targets if use_targets else None,
+        num_puzzles=num_puzzles,
+        min_pqs=min_pqs,
+        min_distance=min_distance,
+        max_distance=max_distance
     )
     
     # Sort by PQS descending
     puzzles.sort(key=lambda p: p['pqs'], reverse=True)
     
     # Export results
-    output_path = Path(args.output)
+    output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Save puzzles as JSON
@@ -445,7 +550,7 @@ def main():
         for i, p in enumerate(puzzles[:5], 1):
             print(f"  {i}. {p['start']} -> {p['end']} (PQS: {p['pqs']}, Difficulty: {p['difficulty']}, Paths: {p['num_paths']}, Steps: {p['intermediate_steps']})")
     else:
-        print("  No puzzles generated. Try lowering the min-pqs threshold.")
+        print("  No puzzles generated. Try lowering the min-pqs threshold or adjusting difficulty targets.")
 
 
 if __name__ == '__main__':

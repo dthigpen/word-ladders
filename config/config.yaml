@@ -1,0 +1,94 @@
+paths:
+  raw_input: "../data/raw/scrabble_words.txt"
+  force_include: "../data/curation/force_include.txt"
+  force_exclude: "../data/curation/force_exclude.txt"
+  output_words: "../data/output/valid_4letter_words.txt"
+  audit_log: "../data/output/pipeline_audit_log.json"
+
+filtering:
+  # Minimum frequency in modern English corpora (0.0 to 1.0).
+  # Increase (e.g., 5e-6) for stricter/easier vocabulary; decrease (e.g., 5e-7) for larger set.
+  min_frequency: 0.0000005
+  allowed_pos:
+    - "n"   # Noun
+    - "v"   # Verb
+    - "a"   # Adjective
+    - "s"   # Adjective Satellite
+
+puzzle_generation:
+  word_list: "../data/output/valid_4letter_words.txt"
+  output: "../data/output/generated_puzzles.json"
+  
+  # Puzzle quality filtering
+  min_pqs: 60.0
+  min_distance: 2
+  max_distance: 3
+  
+  # Target counts per difficulty (set to 0 for no limit)
+  # If all are 0, uses num_puzzles as total target
+  difficulty_targets:
+    easy: 5
+    medium: 15
+    hard: 10
+    expert: 5
+    # easy: 0
+    # medium: 0
+    # hard: 0
+    # expert: 0
+  
+  # Fallback total if difficulty_targets are all 0
+  num_puzzles: 50
+  
+  # Random seed for deterministic generation (set to null for random)
+  seed: 42
+
+pair_generation:
+  word_list: "../data/output/valid_4letter_words.txt"
+  output: "../data/output/thematic_puzzles.json"
+  
+  # Puzzle quality filtering
+  min_pqs: 60.0
+  min_distance: 2
+  max_distance: 5
+  
+  # Semantic bucketing settings
+  min_hamming_distance: 2
+  max_senses_per_word: 2
+  max_per_domain_pair: 500
+  
+  # Target domain pairs for cross-domain and intra-domain pairing
+  # Format: ["domain_a", "domain_b"] - use same domain for intra-domain
+  target_domain_pairs:
+    # Intra-domain pairs (same semantic category)
+    - ["noun.animal", "noun.animal"]
+    - ["noun.food", "noun.food"]
+    - ["noun.body", "noun.body"]
+    - ["noun.feeling", "noun.feeling"]
+    - ["noun.artifact", "noun.artifact"]
+    - ["noun.plant", "noun.plant"]
+    - ["noun.time", "noun.time"]
+    - ["noun.location", "noun.location"]
+    - ["noun.person", "noun.person"]
+    - ["noun.cognition", "noun.cognition"]
+    - ["noun.possession", "noun.possession"]
+    - ["noun.group", "noun.group"]
+    - ["noun.attribute", "noun.attribute"]
+    - ["noun.substance", "noun.substance"]
+    - ["noun.phenomenon", "noun.phenomenon"]
+    - ["noun.event", "noun.event"]
+    - ["noun.state", "noun.state"]
+    - ["noun.act", "noun.act"]
+    - ["noun.relation", "noun.relation"]
+    - ["noun.communication", "noun.communication"]
+    - ["noun.motive", "noun.motive"]
+    # Cross-domain pairs (interesting thematic contrasts)
+    - ["noun.feeling", "noun.phenomenon"]
+    - ["noun.animal", "noun.food"]
+    - ["noun.time", "verb.motion"]
+    - ["noun.body", "noun.artifact"]
+    - ["noun.person", "noun.animal"]
+    - ["noun.food", "noun.plant"]
+    - ["noun.location", "noun.artifact"]
+    - ["noun.cognition", "noun.feeling"]
+    - ["noun.phenomenon", "noun.event"]
+    - ["noun.artifact", "noun.food"]

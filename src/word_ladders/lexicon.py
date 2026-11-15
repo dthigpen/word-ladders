@@ -25,9 +25,31 @@ def download_nltk_data():
 
 
 def load_config(config_path: str) -> Dict:
-    """Load configuration from YAML file."""
+    """Load configuration from YAML file and resolve relative paths."""
+    config_path = Path(config_path).resolve()
     with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    
+    # Resolve relative paths in config to be relative to config file
+    config_dir = config_path.parent
+    if 'paths' in config:
+        for key, value in config['paths'].items():
+            if isinstance(value, str) and value.startswith('.'):
+                config['paths'][key] = str((config_dir / value).resolve())
+    if 'puzzle_generation' in config:
+        pg = config['puzzle_generation']
+        if 'word_list' in pg and pg['word_list'].startswith('.'):
+            pg['word_list'] = str((config_dir / pg['word_list']).resolve())
+        if 'output' in pg and pg['output'].startswith('.'):
+            pg['output'] = str((config_dir / pg['output']).resolve())
+    if 'pair_generation' in config:
+        pg = config['pair_generation']
+        if 'word_list' in pg and pg['word_list'].startswith('.'):
+            pg['word_list'] = str((config_dir / pg['word_list']).resolve())
+        if 'output' in pg and pg['output'].startswith('.'):
+            pg['output'] = str((config_dir / pg['output']).resolve())
+    
+    return config
 
 
 def load_words(file_path: str) -> Set[str]:
@@ -214,11 +236,19 @@ def export_results(
 
 def main():
     """Main pipeline execution."""
+    import sys
+    
+    # Parse simple args for config path
+    config_path = 'config/config.yaml'
+    if len(sys.argv) > 1:
+        if sys.argv[1] == '-c' and len(sys.argv) > 2:
+            config_path = sys.argv[2]
+    
     # Ensure NLTK data is available
     download_nltk_data()
     
     # Load configuration
-    config = load_config('config.yaml')
+    config = load_config(config_path)
     paths = config['paths']
     filtering = config['filtering']
     
