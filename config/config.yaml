@@ -18,6 +18,7 @@ filtering:
 puzzle_generation:
   word_list: "../data/output/valid_4letter_words.txt"
   output: "../data/output/generated_puzzles.json"
+  force_puzzle_pairs: "../data/curation/force_puzzle_pairs.txt"
   
   # Puzzle quality filtering
   min_pqs: 60.0
@@ -59,36 +60,28 @@ pair_generation:
   # Target domain pairs for cross-domain and intra-domain pairing
   # Format: ["domain_a", "domain_b"] - use same domain for intra-domain
   target_domain_pairs:
-    # Intra-domain pairs (same semantic category)
-    - ["noun.animal", "noun.animal"]
-    - ["noun.food", "noun.food"]
-    - ["noun.body", "noun.body"]
-    - ["noun.feeling", "noun.feeling"]
-    - ["noun.artifact", "noun.artifact"]
-    - ["noun.plant", "noun.plant"]
-    - ["noun.time", "noun.time"]
-    - ["noun.location", "noun.location"]
-    - ["noun.person", "noun.person"]
-    - ["noun.cognition", "noun.cognition"]
+    # Intra-domain pairs (same semantic category) - good results
     - ["noun.possession", "noun.possession"]
-    - ["noun.group", "noun.group"]
-    - ["noun.attribute", "noun.attribute"]
-    - ["noun.substance", "noun.substance"]
-    - ["noun.phenomenon", "noun.phenomenon"]
     - ["noun.event", "noun.event"]
-    - ["noun.state", "noun.state"]
+    - ["noun.time", "noun.time"]
+    - ["noun.group", "noun.group"]
+    - ["noun.food", "noun.food"]
+    - ["noun.person", "noun.person"]
     - ["noun.act", "noun.act"]
-    - ["noun.relation", "noun.relation"]
-    - ["noun.communication", "noun.communication"]
-    - ["noun.motive", "noun.motive"]
-    # Cross-domain pairs (interesting thematic contrasts)
-    - ["noun.feeling", "noun.phenomenon"]
-    - ["noun.animal", "noun.food"]
-    - ["noun.time", "verb.motion"]
-    - ["noun.body", "noun.artifact"]
-    - ["noun.person", "noun.animal"]
+    - ["noun.location", "noun.location"]
+    - ["noun.attribute", "noun.attribute"]
+    - ["noun.cognition", "noun.cognition"]
+    - ["noun.feeling", "noun.feeling"]
+    - ["noun.plant", "noun.plant"]
+    - ["noun.phenomenon", "noun.phenomenon"]
+    # Cross-domain pairs (interesting thematic contrasts) - good results
     - ["noun.food", "noun.plant"]
-    - ["noun.location", "noun.artifact"]
+    - ["noun.time", "verb.motion"]
+    - ["noun.feeling", "noun.phenomenon"]
     - ["noun.cognition", "noun.feeling"]
     - ["noun.phenomenon", "noun.event"]
-    - ["noun.artifact", "noun.food"]
+    - ["noun.animal", "noun.food"]
+    # Removed due to poor results:
+    # - noun.body (3 puzzles), noun.animal (2), noun.substance (1), noun.artifact (1)
+    # - noun.relation (4), noun.state (6), noun.artifact <-> noun.food (4)
+    # - noun.person <-> noun.animal (5), noun.body <-> noun.artifact (config only)

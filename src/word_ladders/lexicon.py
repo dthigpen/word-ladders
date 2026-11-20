@@ -34,19 +34,21 @@ def load_config(config_path: str) -> Dict:
     config_dir = config_path.parent
     if 'paths' in config:
         for key, value in config['paths'].items():
-            if isinstance(value, str) and value.startswith('.'):
+            if isinstance(value, str) and (value.startswith('.') or value.startswith('..')):
                 config['paths'][key] = str((config_dir / value).resolve())
     if 'puzzle_generation' in config:
         pg = config['puzzle_generation']
-        if 'word_list' in pg and pg['word_list'].startswith('.'):
+        if 'word_list' in pg and (pg['word_list'].startswith('.') or pg['word_list'].startswith('..')):
             pg['word_list'] = str((config_dir / pg['word_list']).resolve())
-        if 'output' in pg and pg['output'].startswith('.'):
+        if 'output' in pg and (pg['output'].startswith('.') or pg['output'].startswith('..')):
             pg['output'] = str((config_dir / pg['output']).resolve())
+        if 'force_puzzle_pairs' in pg and (pg['force_puzzle_pairs'].startswith('.') or pg['force_puzzle_pairs'].startswith('..')):
+            pg['force_puzzle_pairs'] = str((config_dir / pg['force_puzzle_pairs']).resolve())
     if 'pair_generation' in config:
         pg = config['pair_generation']
-        if 'word_list' in pg and pg['word_list'].startswith('.'):
+        if 'word_list' in pg and (pg['word_list'].startswith('.') or pg['word_list'].startswith('..')):
             pg['word_list'] = str((config_dir / pg['word_list']).resolve())
-        if 'output' in pg and pg['output'].startswith('.'):
+        if 'output' in pg and (pg['output'].startswith('.') or pg['output'].startswith('..')):
             pg['output'] = str((config_dir / pg['output']).resolve())
     
     return config

@@ -49,6 +49,8 @@ def main():
     puzzles_parser.add_argument('--hard', type=int, help='Target count for Hard puzzles')
     puzzles_parser.add_argument('--expert', type=int, help='Target count for Expert puzzles')
     puzzles_parser.add_argument('--solve', nargs=2, metavar=('START', 'END'), help='Solve a specific word ladder pair')
+    puzzles_parser.add_argument('--include-thematic', action='store_true', help='Include thematic puzzles in output')
+    puzzles_parser.add_argument('--thematic-only', action='store_true', help='Generate only thematic puzzles')
     
     # Thematic command
     thematic_parser = subparsers.add_parser(
@@ -105,6 +107,10 @@ def main():
             sys.argv.extend(['--expert', str(args.expert)])
         if args.solve:
             sys.argv.extend(['--solve'] + args.solve)
+        if args.include_thematic:
+            sys.argv.extend(['--include-thematic'])
+        if args.thematic_only:
+            sys.argv.extend(['--thematic-only'])
         puzzles_main()
     elif args.command == 'thematic':
         # Build custom argv for the subcommand

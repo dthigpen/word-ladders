@@ -234,17 +234,82 @@ def validate_thematic_pairs(
             "theme_type": candidate['theme_type'],
             "theme_label": candidate['theme_label'],
             "intermediate_steps": intermediate_steps,
-            "num_shortest_paths": len(paths),
-            "pqs_score": pqs,
+            "num_paths": len(paths),
+            "pqs": pqs,
             "difficulty": difficulty,
             "sample_path": paths[0],  # First shortest path as sample
-            "all_paths": paths
+            "paths": paths,
+            "source": "thematic",
         }
         
         validated.append(puzzle)
         
         if (i + 1) % 50 == 0:
             print(f"  Validated {len(validated)}/{i+1} candidates...")
+    
+    return validated
+
+
+def generate_thematic_puzzles(
+    word_set: Set[str],
+    graph: Dict[str, List[str]],
+    word_freq_map: Dict[str, float],
+    graph_degrees: Dict[str, int],
+    min_pqs: float = 80.0,
+    min_distance: int = 2,
+    max_distance: int = 5,
+    target_domain_pairs: List[List[str]] = None,
+    max_per_domain_pair: int = 500,
+    min_hamming: int = 2,
+    max_senses: int = 2,
+) -> List[Dict]:
+    """Generate thematic puzzles directly from graph and word set."""
+    if target_domain_pairs is None:
+        # Use sensible defaults
+        target_domain_pairs = [
+            ["noun.animal", "noun.animal"],
+            ["noun.food", "noun.food"],
+            ["noun.body", "noun.body"],
+            ["noun.feeling", "noun.feeling"],
+            ["noun.artifact", "noun.artifact"],
+        ]
+    
+    # Strategy A: Build domain buckets
+    buckets = build_domain_buckets(word_set, max_senses=max_senses)
+    
+    # Generate domain pairs
+    domain_candidates = extract_domain_pairs(
+        buckets,
+        target_domain_pairs,
+        min_hamming=min_hamming,
+        max_per_domain_pair=max_per_domain_pair
+    )
+    
+    # Strategy B: Extract antonym and polarity pairs
+    antonym_candidates = extract_antonym_polarity_pairs(word_set, min_hamming=min_hamming)
+    
+    # Combine and deduplicate
+    all_candidates = domain_candidates + antonym_candidates
+    
+    # Deduplicate by canonical pair
+    seen = set()
+    deduplicated = []
+    for candidate in all_candidates:
+        canonical = tuple(sorted((candidate['start'], candidate['end'])))
+        if canonical not in seen:
+            seen.add(canonical)
+            deduplicated.append(candidate)
+    
+    # Validate pairs
+    validated = validate_pairs(
+        deduplicated,
+        graph,
+        word_freq_map,
+        graph_degrees,
+        min_pqs=min_pqs,
+        min_distance=min_distance,
+        max_distance=max_distance
+    )
     
     return validated
 

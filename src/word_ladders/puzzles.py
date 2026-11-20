@@ -9,6 +9,7 @@ filtering by Puzzle Quality Score (PQS) and tagging by difficulty.
 import json
 import random
 import string
+import sys
 from collections import deque
 from pathlib import Path
 from typing import Set, Dict, List, Tuple
@@ -21,6 +22,28 @@ def load_words(file_path: str) -> Set[str]:
     """Load words from a file, one per line."""
     with open(file_path, 'r') as f:
         return {line.strip().lower() for line in f if line.strip()}
+
+
+def load_forced_pairs(file_path: str) -> List[Tuple[str, str]]:
+    """Load forced puzzle pairs from a file (format: start,end per line)."""
+    pairs = []
+    path = Path(file_path)
+    
+    if not path.exists():
+        return pairs
+    
+    with open(path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = line.split(',')
+            if len(parts) == 2:
+                start, end = parts[0].strip().lower(), parts[1].strip().lower()
+                if start and end and start != end:
+                    pairs.append((start, end))
+    
+    return pairs
 
 
 def get_neighbors(word: str, word_set: Set[str]) -> Set[str]:
@@ -258,7 +281,8 @@ def generate_puzzles(
     min_pqs: float = 80.0,
     min_distance: int = 3,
     max_distance: int = 6,
-    max_attempts: int = None
+    max_attempts: int = None,
+    forced_pairs: List[Tuple[str, str]] = None
 ) -> List[Dict]:
     """
     Generate puzzles by sampling word pairs and filtering by PQS.
@@ -275,12 +299,69 @@ def generate_puzzles(
         min_distance: Minimum intermediate steps
         max_distance: Maximum intermediate steps
         max_attempts: Maximum sampling attempts (default: calculated based on targets)
+        forced_pairs: List of (start, end) tuples to force-include if they pass validation
     
     Returns:
         List of puzzle dictionaries with metadata
     """
     puzzles = []
     attempts = 0
+    
+    # Process forced pairs first
+    forced_accepted = []
+    forced_rejected = []
+    if forced_pairs:
+        print(f"  Processing {len(forced_pairs)} forced pairs...")
+        for start, end in forced_pairs:
+            if start not in word_set:
+                reason = f"'{start}' not in word list"
+                forced_rejected.append((start, end, reason))
+                print(f"    Rejected forced pair {start},{end}: {reason}")
+                continue
+            if end not in word_set:
+                reason = f"'{end}' not in word list"
+                forced_rejected.append((start, end, reason))
+                print(f"    Rejected forced pair {start},{end}: {reason}")
+                continue
+            
+            paths = find_all_shortest_paths(start, end, graph)
+            if not paths:
+                reason = "no path found"
+                forced_rejected.append((start, end, reason))
+                print(f"    Rejected forced pair {start},{end}: {reason}")
+                continue
+            
+            intermediate_steps = len(paths[0]) - 2
+            if intermediate_steps < min_distance or intermediate_steps > max_distance:
+                reason = f"distance {intermediate_steps} outside range [{min_distance}, {max_distance}]"
+                forced_rejected.append((start, end, reason))
+                print(f"    Rejected forced pair {start},{end}: {reason}")
+                continue
+            
+            # Skip PQS check for forced pairs (user explicitly wants them)
+            pqs = calculate_pqs(paths, word_freq_map, graph_degrees)
+            difficulty = calculate_difficulty_tag(paths, word_freq_map, graph_degrees)
+            
+            puzzle = {
+                'start': start,
+                'end': end,
+                'paths': paths,
+                'intermediate_steps': intermediate_steps,
+                'num_paths': len(paths),
+                'pqs': pqs,
+                'difficulty': difficulty,
+                'source': 'random',
+                'forced': True,
+            }
+            puzzles.append(puzzle)
+            forced_accepted.append((start, end, pqs, difficulty))
+            print(f"    Accepted forced pair: {start} -> {end} (PQS: {pqs}, Difficulty: {difficulty})")
+        
+        print(f"  Forced pairs accepted: {len(forced_accepted)}")
+        if forced_rejected:
+            print(f"  Forced pairs rejected: {len(forced_rejected)}")
+            for start, end, reason in forced_rejected:
+                print(f"    {start},{end}: {reason}")
     
     # Determine generation mode
     use_difficulty_targets = difficulty_targets and sum(difficulty_targets.values()) > 0
@@ -297,8 +378,14 @@ def generate_puzzles(
     # Track used start/end pairs to avoid duplicates
     used_pairs = set()
     
+    # Add forced pairs to used_pairs to avoid duplicates
+    for p in puzzles:
+        used_pairs.add(tuple(sorted((p['start'], p['end']))))
+    
     # Track current counts per difficulty
     current_counts = {d: 0 for d in ['Easy', 'Medium', 'Hard', 'Expert']}
+    for p in puzzles:
+        current_counts[p['difficulty']] += 1
     
     def targets_met():
         """Check if all difficulty targets have been met."""
@@ -369,6 +456,7 @@ def generate_puzzles(
             'num_paths': len(paths),
             'pqs': pqs,
             'difficulty': difficulty,
+            'source': 'random',
         }
         
         puzzles.append(puzzle)
@@ -412,6 +500,8 @@ def main():
     parser.add_argument('--hard', type=int, help='Target count for Hard puzzles (overrides config)')
     parser.add_argument('--expert', type=int, help='Target count for Expert puzzles (overrides config)')
     parser.add_argument('--solve', nargs=2, metavar=('START', 'END'), help='Solve a specific word ladder pair')
+    parser.add_argument('--include-thematic', action='store_true', help='Include thematic puzzles in output')
+    parser.add_argument('--thematic-only', action='store_true', help='Generate only thematic puzzles')
     
     args = parser.parse_args()
     
@@ -426,6 +516,7 @@ def main():
     min_distance = args.min_distance if args.min_distance is not None else puzzle_config.get('min_distance', 3)
     max_distance = args.max_distance if args.max_distance is not None else puzzle_config.get('max_distance', 6)
     seed = args.seed if args.seed is not None else puzzle_config.get('seed')
+    force_puzzle_pairs_path = puzzle_config.get('force_puzzle_pairs')
     
     # Difficulty targets
     # If num_puzzles is explicitly provided via CLI, ignore difficulty targets
@@ -466,6 +557,13 @@ def main():
     word_freq_map = {word: wordfreq.word_frequency(word, 'en') for word in word_set}
     print(f"  Frequency map built")
     
+    # Load forced puzzle pairs
+    forced_pairs = []
+    if force_puzzle_pairs_path:
+        forced_pairs = load_forced_pairs(force_puzzle_pairs_path)
+        if forced_pairs:
+            print(f"  Loaded {len(forced_pairs)} forced puzzle pairs")
+    
     # Solve specific pair mode
     if args.solve:
         start, end = args.solve
@@ -499,27 +597,178 @@ def main():
         print(f"Intermediate steps: {len(paths[0]) - 2}")
         return
     
+    # Thematic-only mode
+    if args.thematic_only:
+        print("\nGenerating thematic puzzles only...")
+        from word_ladders.thematic import generate_thematic_puzzles
+        from word_ladders.lexicon import load_config as load_config_full
+        
+        # Reload config to get pair_generation settings
+        config_full = load_config_full(args.config)
+        pair_config = config_full.get('pair_generation', {})
+        target_domain_pairs = pair_config.get('target_domain_pairs', [
+            ["noun.possession", "noun.possession"],
+            ["noun.event", "noun.event"],
+            ["noun.time", "noun.time"],
+            ["noun.group", "noun.group"],
+            ["noun.food", "noun.food"],
+            ["noun.person", "noun.person"],
+            ["noun.act", "noun.act"],
+            ["noun.location", "noun.location"],
+            ["noun.attribute", "noun.attribute"],
+            ["noun.cognition", "noun.cognition"],
+            ["noun.feeling", "noun.feeling"],
+            ["noun.plant", "noun.plant"],
+            ["noun.phenomenon", "noun.phenomenon"],
+            ["noun.food", "noun.plant"],
+            ["noun.time", "verb.motion"],
+            ["noun.feeling", "noun.phenomenon"],
+            ["noun.cognition", "noun.feeling"],
+            ["noun.phenomenon", "noun.event"],
+            ["noun.animal", "noun.food"],
+        ])
+        max_per_domain_pair = pair_config.get('max_per_domain_pair', 500)
+        min_hamming = pair_config.get('min_hamming_distance', 2)
+        max_senses = pair_config.get('max_senses_per_word', 2)
+        
+        puzzles = generate_thematic_puzzles(
+            word_set=word_set,
+            graph=graph,
+            word_freq_map=word_freq_map,
+            graph_degrees=graph_degrees,
+            min_pqs=min_pqs,
+            min_distance=min_distance,
+            max_distance=max_distance,
+            target_domain_pairs=target_domain_pairs,
+            max_per_domain_pair=max_per_domain_pair,
+            min_hamming=min_hamming,
+            max_senses=max_senses
+        )
+        print(f"  Generated {len(puzzles)} thematic puzzles")
+        
+        # Sort by PQS descending
+        puzzles.sort(key=lambda p: p['pqs'], reverse=True)
+        
+        # Export results
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Save puzzles as JSON (without full paths to save space)
+        export_data = []
+        for p in puzzles:
+            export_p = {k: v for k, v in p.items() if k != 'paths'}
+            export_p['sample_path'] = p['paths'][0] if p['paths'] else []
+            export_data.append(export_p)
+        
+        with open(output_path, 'w') as f:
+            json.dump(export_data, f, indent=2)
+        print(f"\nPuzzles saved to: {output_path}")
+        
+        # Print summary
+        print("\n" + "=" * 50)
+        print("Summary:")
+        print(f"  Total puzzles: {len(puzzles)}")
+        if puzzles:
+            print(f"  PQS range: {puzzles[-1]['pqs']:.2f} - {puzzles[0]['pqs']:.2f}")
+            
+            # Count by source
+            source_counts = {}
+            for p in puzzles:
+                source = p.get('source', 'random')
+                source_counts[source] = source_counts.get(source, 0) + 1
+            print(f"  Source breakdown: {source_counts}")
+            
+            difficulty_counts = {}
+            for p in puzzles:
+                difficulty_counts[p['difficulty']] = difficulty_counts.get(p['difficulty'], 0) + 1
+            print(f"  Difficulty breakdown: {difficulty_counts}")
+            
+            # Show top 5 puzzles
+            print("\nTop 5 puzzles by PQS:")
+            for i, p in enumerate(puzzles[:5], 1):
+                source = p.get('source', 'random')
+                print(f"  {i}. {p['start']} -> {p['end']} ({source}, PQS: {p['pqs']}, Difficulty: {p['difficulty']}, Paths: {p['num_paths']}, Steps: {p['intermediate_steps']})")
+        else:
+            print("  No puzzles generated. Try lowering the min-pqs threshold or adjusting difficulty targets.")
+        return
+    
     # Generate puzzles mode
-    use_targets = sum(difficulty_targets.values()) > 0
+    puzzles = []
     
-    if use_targets:
-        print(f"\nGenerating puzzles with difficulty targets: {difficulty_targets}")
-    else:
-        print(f"\nGenerating {num_puzzles} puzzles")
+    # Generate random puzzles (unless thematic-only)
+    if not args.thematic_only:
+        use_targets = sum(difficulty_targets.values()) > 0
+        
+        if use_targets:
+            print(f"\nGenerating random puzzles with difficulty targets: {difficulty_targets}")
+        else:
+            print(f"\nGenerating {num_puzzles} random puzzles")
+        
+        print(f"  Min PQS: {min_pqs}, Distance: {min_distance}-{max_distance}")
+        
+        random_puzzles = generate_puzzles(
+            word_set=word_set,
+            graph=graph,
+            word_freq_map=word_freq_map,
+            graph_degrees=graph_degrees,
+            difficulty_targets=difficulty_targets if use_targets else None,
+            num_puzzles=num_puzzles,
+            min_pqs=min_pqs,
+            min_distance=min_distance,
+            max_distance=max_distance,
+            forced_pairs=forced_pairs
+        )
+        puzzles.extend(random_puzzles)
     
-    print(f"  Min PQS: {min_pqs}, Distance: {min_distance}-{max_distance}")
-    
-    puzzles = generate_puzzles(
-        word_set=word_set,
-        graph=graph,
-        word_freq_map=word_freq_map,
-        graph_degrees=graph_degrees,
-        difficulty_targets=difficulty_targets if use_targets else None,
-        num_puzzles=num_puzzles,
-        min_pqs=min_pqs,
-        min_distance=min_distance,
-        max_distance=max_distance
-    )
+    # Generate thematic puzzles if requested
+    if args.include_thematic:
+        print("\nGenerating thematic puzzles...")
+        from word_ladders.thematic import generate_thematic_puzzles
+        from word_ladders.lexicon import load_config as load_config_full
+        
+        # Reload config to get pair_generation settings
+        config_full = load_config_full(args.config)
+        pair_config = config_full.get('pair_generation', {})
+        target_domain_pairs = pair_config.get('target_domain_pairs', [
+            ["noun.possession", "noun.possession"],
+            ["noun.event", "noun.event"],
+            ["noun.time", "noun.time"],
+            ["noun.group", "noun.group"],
+            ["noun.food", "noun.food"],
+            ["noun.person", "noun.person"],
+            ["noun.act", "noun.act"],
+            ["noun.location", "noun.location"],
+            ["noun.attribute", "noun.attribute"],
+            ["noun.cognition", "noun.cognition"],
+            ["noun.feeling", "noun.feeling"],
+            ["noun.plant", "noun.plant"],
+            ["noun.phenomenon", "noun.phenomenon"],
+            ["noun.food", "noun.plant"],
+            ["noun.time", "verb.motion"],
+            ["noun.feeling", "noun.phenomenon"],
+            ["noun.cognition", "noun.feeling"],
+            ["noun.phenomenon", "noun.event"],
+            ["noun.animal", "noun.food"],
+        ])
+        max_per_domain_pair = pair_config.get('max_per_domain_pair', 500)
+        min_hamming = pair_config.get('min_hamming_distance', 2)
+        max_senses = pair_config.get('max_senses_per_word', 2)
+        
+        thematic_puzzles = generate_thematic_puzzles(
+            word_set=word_set,
+            graph=graph,
+            word_freq_map=word_freq_map,
+            graph_degrees=graph_degrees,
+            min_pqs=min_pqs,
+            min_distance=min_distance,
+            max_distance=max_distance,
+            target_domain_pairs=target_domain_pairs,
+            max_per_domain_pair=max_per_domain_pair,
+            min_hamming=min_hamming,
+            max_senses=max_senses
+        )
+        puzzles.extend(thematic_puzzles)
+        print(f"  Added {len(thematic_puzzles)} thematic puzzles")
     
     # Sort by PQS descending
     puzzles.sort(key=lambda p: p['pqs'], reverse=True)
@@ -528,9 +777,15 @@ def main():
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # Save puzzles as JSON
+    # Save puzzles as JSON (without full paths to save space)
+    export_data = []
+    for p in puzzles:
+        export_p = {k: v for k, v in p.items() if k != 'paths'}
+        export_p['sample_path'] = p['paths'][0] if p['paths'] else []
+        export_data.append(export_p)
+    
     with open(output_path, 'w') as f:
-        json.dump(puzzles, f, indent=2)
+        json.dump(export_data, f, indent=2)
     print(f"\nPuzzles saved to: {output_path}")
     
     # Print summary
@@ -540,6 +795,13 @@ def main():
     if puzzles:
         print(f"  PQS range: {puzzles[-1]['pqs']:.2f} - {puzzles[0]['pqs']:.2f}")
         
+        # Count by source
+        source_counts = {}
+        for p in puzzles:
+            source = p.get('source', 'random')
+            source_counts[source] = source_counts.get(source, 0) + 1
+        print(f"  Source breakdown: {source_counts}")
+        
         difficulty_counts = {}
         for p in puzzles:
             difficulty_counts[p['difficulty']] = difficulty_counts.get(p['difficulty'], 0) + 1
@@ -548,7 +810,8 @@ def main():
         # Show top 5 puzzles
         print("\nTop 5 puzzles by PQS:")
         for i, p in enumerate(puzzles[:5], 1):
-            print(f"  {i}. {p['start']} -> {p['end']} (PQS: {p['pqs']}, Difficulty: {p['difficulty']}, Paths: {p['num_paths']}, Steps: {p['intermediate_steps']})")
+            source = p.get('source', 'random')
+            print(f"  {i}. {p['start']} -> {p['end']} ({source}, PQS: {p['pqs']}, Difficulty: {p['difficulty']}, Paths: {p['num_paths']}, Steps: {p['intermediate_steps']})")
     else:
         print("  No puzzles generated. Try lowering the min-pqs threshold or adjusting difficulty targets.")
 

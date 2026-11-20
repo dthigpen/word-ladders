@@ -7,27 +7,6 @@
         "lots",
         "loss",
         "less",
-        "ness",
-        "nest"
-      ],
-      [
-        "lots",
-        "lets",
-        "less",
-        "ness",
-        "nest"
-      ],
-      [
-        "lots",
-        "lets",
-        "nets",
-        "ness",
-        "nest"
-      ],
-      [
-        "lots",
-        "loss",
-        "less",
         "lest",
         "nest"
       ],
@@ -43,6 +22,27 @@
         "loss",
         "lost",
         "lest",
+        "nest"
+      ],
+      [
+        "lots",
+        "loss",
+        "less",
+        "ness",
+        "nest"
+      ],
+      [
+        "lots",
+        "lets",
+        "less",
+        "ness",
+        "nest"
+      ],
+      [
+        "lots",
+        "lets",
+        "nets",
+        "ness",
         "nest"
       ]
     ],
@@ -71,16 +71,16 @@
       ],
       [
         "word",
-        "wood",
-        "hood",
-        "hook",
+        "worn",
+        "born",
+        "boon",
         "book"
       ],
       [
         "word",
-        "worn",
-        "born",
-        "boon",
+        "wood",
+        "hood",
+        "hook",
         "book"
       ]
     ],
@@ -95,29 +95,29 @@
     "paths": [
       [
         "mesh",
-        "meth",
-        "math",
-        "mats",
-        "cats"
-      ],
-      [
-        "mesh",
-        "mash",
-        "math",
-        "mats",
-        "cats"
-      ],
-      [
-        "mesh",
-        "mash",
-        "mass",
-        "mats",
-        "cats"
-      ],
-      [
-        "mesh",
         "mess",
         "mass",
+        "mats",
+        "cats"
+      ],
+      [
+        "mesh",
+        "mash",
+        "mass",
+        "mats",
+        "cats"
+      ],
+      [
+        "mesh",
+        "mash",
+        "math",
+        "mats",
+        "cats"
+      ],
+      [
+        "mesh",
+        "meth",
+        "math",
         "mats",
         "cats"
       ]
@@ -133,9 +133,9 @@
     "paths": [
       [
         "sand",
-        "sane",
-        "sale",
-        "male",
+        "band",
+        "bald",
+        "ball",
         "mall"
       ],
       [
@@ -147,9 +147,9 @@
       ],
       [
         "sand",
-        "said",
-        "sail",
-        "mail",
+        "sane",
+        "sale",
+        "male",
         "mall"
       ],
       [
@@ -161,9 +161,9 @@
       ],
       [
         "sand",
-        "band",
-        "bald",
-        "ball",
+        "said",
+        "sail",
+        "mail",
         "mall"
       ]
     ],
@@ -178,16 +178,9 @@
     "paths": [
       [
         "cash",
-        "lash",
-        "last",
-        "lest",
-        "test"
-      ],
-      [
-        "cash",
         "cast",
-        "last",
-        "lest",
+        "past",
+        "pest",
         "test"
       ],
       [
@@ -200,8 +193,15 @@
       [
         "cash",
         "cast",
-        "past",
-        "pest",
+        "last",
+        "lest",
+        "test"
+      ],
+      [
+        "cash",
+        "lash",
+        "last",
+        "lest",
         "test"
       ]
     ],
@@ -216,15 +216,15 @@
     "paths": [
       [
         "lace",
-        "lame",
-        "came",
+        "lane",
+        "cane",
         "case",
         "cast"
       ],
       [
         "lace",
-        "lane",
-        "cane",
+        "lame",
+        "came",
         "case",
         "cast"
       ],
@@ -268,14 +268,14 @@
     "paths": [
       [
         "moth",
-        "both",
+        "meth",
         "beth",
         "bets",
         "sets"
       ],
       [
         "moth",
-        "meth",
+        "both",
         "beth",
         "bets",
         "sets"
@@ -416,15 +416,15 @@
     "paths": [
       [
         "cave",
-        "cove",
-        "cole",
+        "save",
+        "sale",
         "sole",
         "solo"
       ],
       [
         "cave",
-        "save",
-        "sale",
+        "cove",
+        "cole",
         "sole",
         "solo"
       ]
@@ -440,14 +440,14 @@
     "paths": [
       [
         "chip",
-        "chap",
+        "clip",
         "clap",
         "flap",
         "flag"
       ],
       [
         "chip",
-        "clip",
+        "chap",
         "clap",
         "flap",
         "flag"
@@ -471,20 +471,20 @@
     "paths": [
       [
         "bags",
-        "bugs",
-        "buns",
-        "bunk"
-      ],
-      [
-        "bags",
-        "bans",
-        "buns",
-        "bunk"
-      ],
-      [
-        "bags",
         "bans",
         "bank",
+        "bunk"
+      ],
+      [
+        "bags",
+        "bans",
+        "buns",
+        "bunk"
+      ],
+      [
+        "bags",
+        "bugs",
+        "buns",
         "bunk"
       ]
     ],
@@ -500,13 +500,13 @@
       [
         "cows",
         "cops",
-        "cope",
+        "hops",
         "hope"
       ],
       [
         "cows",
         "cops",
-        "hops",
+        "cope",
         "hope"
       ]
     ],
@@ -544,13 +544,13 @@
       [
         "laws",
         "lows",
-        "lots",
+        "bows",
         "bots"
       ],
       [
         "laws",
         "lows",
-        "bows",
+        "lots",
         "bots"
       ]
     ],
@@ -565,13 +565,6 @@
     "paths": [
       [
         "wary",
-        "wars",
-        "bars",
-        "bass",
-        "bash"
-      ],
-      [
-        "wary",
         "warp",
         "wasp",
         "wash",
@@ -582,6 +575,13 @@
         "ware",
         "bare",
         "base",
+        "bash"
+      ],
+      [
+        "wary",
+        "wars",
+        "bars",
+        "bass",
         "bash"
       ]
     ],

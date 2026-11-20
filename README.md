@@ -32,6 +32,8 @@ word-ladders puzzles --min-pqs 70 --seed 42 --easy 10 --medium 20
 
 Generates puzzles with PQS filtering and difficulty tagging. See `config/config.yaml` for defaults.
 
+**Manual Puzzle Pairs:** Add word pairs to `data/curation/force_puzzle_pairs.txt` (format: `start,end`) to force-include specific puzzles. Pairs are validated against PQS and distance constraints.
+
 ### Generate Thematic Puzzles
 
 ```bash

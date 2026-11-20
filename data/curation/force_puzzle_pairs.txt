@@ -1,0 +1,10 @@
+# Manual puzzle pairs to force-include in generation
+# Format: start_word,end_word (one per line)
+# Lines starting with # are ignored
+# Pairs must be valid 4-letter words that can form a ladder
+# 
+# These pairs are validated against PQS and distance constraints before inclusion.
+
+# Example curated pairs (uncomment to use):
+warm,cold
+head,tail
